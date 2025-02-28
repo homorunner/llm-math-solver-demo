@@ -17,7 +17,7 @@ TEMPERATURE_CODE = 0.25
 REPETITION_PENALTY_THINK = 1
 REPETITION_PENALTY_CODE = 1
 
-MAX_NUM_SEQS = 8
+MAX_NUM_SEQS = 24
 MAX_TOKENS_THINK = 4096
 MAX_TOKENS_CODE = 1024
 MAX_ITERATION_CODE = 2
@@ -174,9 +174,10 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
     code_outputs = ["" for _ in range(count)]
 
     for iter in range(MAX_ITERATION_CODE):
-        for i in range(count):
-            with open(f"{debug_save_dir}/prompt_{iter}_{i}.txt", "w") as f:
-                f.write(prompts[i])
+        if DEBUG:
+            for i in range(count):
+                with open(f"{debug_save_dir}/prompt_{iter}_{i}.txt", "w") as f:
+                    f.write(prompts[i])
 
         llm_outputs = llm.generate(
             prompts=prompts,
@@ -201,17 +202,17 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
                 with open(f"{debug_save_dir}/result_{iter}_{i}.txt", "w") as f:
                     f.write(f"{res}\n\n{report}")
 
-            for i, (res, report) in enumerate(execution_results):
-                if report == 'Done' and res:
-                    code_outputs[i] = res
-                    if iter < MAX_ITERATION_CODE - 1:
-                        prompts[i] += f"```\n\nThe output of code: {res}\n\nSo the complete code would be:\n\n```python" + CODE
-                elif report == 'Done':
-                    if iter < MAX_ITERATION_CODE - 1:
-                        prompts[i] += f"```\n\nThe output of code is empty.\n\nSo the complete code would be:\n\n```python" + CODE
-                else:
-                    if iter < MAX_ITERATION_CODE - 1:
-                        prompts[i] += f"```\n\nBut this code has error: {report}\n\nSo the complete code would be:\n\n```python" + CODE
+        for i, (res, report) in enumerate(execution_results):
+            if report == 'Done' and res:
+                code_outputs[i] = res
+                if iter < MAX_ITERATION_CODE - 1:
+                    prompts[i] += f"```\n\nThe output of code: {res}\n\nSo the complete code would be:\n\n```python" + CODE
+            elif report == 'Done':
+                if iter < MAX_ITERATION_CODE - 1:
+                    prompts[i] += f"```\n\nThe output of code is empty.\n\nSo the complete code would be:\n\n```python" + CODE
+            else:
+                if iter < MAX_ITERATION_CODE - 1:
+                    prompts[i] += f"```\n\nBut this code has error: {report}\n\nSo the complete code would be:\n\n```python" + CODE
 
     counter = {}
     value = {}
@@ -230,10 +231,17 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        TEMPERATURE_THINK = float(sys.argv[1])
+        TEMPERATURE_CODE = float(sys.argv[2])
+        DEBUG = False
+        print(f"Using {TEMPERATURE_THINK=}, {TEMPERATURE_CODE=}")
+
     load_model()
     load_questions()
 
-    shutil.rmtree('output')
+    if DEBUG:
+        shutil.rmtree('output', ignore_errors=True)
 
     correct_count = 0
     confidence = 0
