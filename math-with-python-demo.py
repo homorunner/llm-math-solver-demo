@@ -13,7 +13,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 MODEL = 'models/DeepSeek-R1-Distill-Qwen-7B-Awq'
 TEMPERATURE_THINK = 1.0
-TEMPERATURE_CODE = 0.5
+TEMPERATURE_CODE = 0.25
 REPETITION_PENALTY_THINK = 1
 REPETITION_PENALTY_CODE = 1  # 1.2
 
@@ -73,7 +73,8 @@ import itertools
 import random
 import math
 import sympy
-"""
+
+def"""
 
 CODE_FOR_ACTUAL_RUN = """
 import itertools
@@ -84,7 +85,8 @@ import sys
 sys.set_int_max_str_digits(20000)
 sys.setrecursionlimit(20000)
 exit=lambda x=0:None
-"""
+
+def"""
 
 CODE_PREFIX = """</think>
 The problem can be solved by following code. 
