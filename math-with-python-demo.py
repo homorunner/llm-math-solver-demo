@@ -197,10 +197,10 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
                 value[res] = value.get(res, 0) + get_value(res)
 
     if not counter:
-        return None, 0
+        return None, {}
 
-    _, result = sorted([(v, k) for k, v in counter.items()], reverse=True)[0]
-    return (result % 1000 + 1000) % 1000, counter[result] / count
+    _, result = sorted([(v, k) for k, v in value.items()], reverse=True)[0]
+    return (result % 1000 + 1000) % 1000, counter
 
 
 if __name__ == "__main__":
@@ -210,16 +210,16 @@ if __name__ == "__main__":
     shutil.rmtree('output')
 
     correct_count = 0
-    confidence_sum = 0
+    confidence = 0
     for index, question in enumerate(QUESTIONS[:EVAL_COUNT]):
         question = question_cleanup(question)
-        result, confidence = process(question, MAX_NUM_SEQS,
-                                     MAX_TOKENS_THINK, MAX_TOKENS_CODE, f"output/question_{index}")
+        result, result_dict = process(question, MAX_NUM_SEQS,
+                                      MAX_TOKENS_THINK, MAX_TOKENS_CODE, f"output/question_{index}")
         answer = ANSWERS[index]
         print(f"Final {result=}, {answer=}")
 
-        if result == answer:
-            correct_count += 1
-            confidence_sum += confidence
+        correct_count += 1 if result == answer else 0
+        confidence += result_dict.get(answer, 0) / MAX_NUM_SEQS
+
         print(f"Accuracy: {correct_count}/{index + 1}")
-        print(f"Confidence: {confidence_sum / (index + 1)}")
+        print(f"Confidence: {confidence / (index + 1)}")
