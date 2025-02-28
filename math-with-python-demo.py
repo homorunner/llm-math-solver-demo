@@ -15,18 +15,19 @@ MODEL = 'models/DeepSeek-R1-Distill-Qwen-7B-Awq'
 TEMPERATURE_THINK = 1.0
 TEMPERATURE_CODE = 0.25
 REPETITION_PENALTY_THINK = 1
-REPETITION_PENALTY_CODE = 1  # 1.2
+REPETITION_PENALTY_CODE = 1
 
 MAX_NUM_SEQS = 8
 MAX_TOKENS_THINK = 4096
 MAX_TOKENS_CODE = 1024
-MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE + 1024
+MAX_ITERATION_CODE = 2
+MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE * MAX_ITERATION_CODE + 1024
 
 LOGITS_BIAS_THINK = {}
 LOGITS_BIAS_CODE = {x: -10 for x in [
     3783, 11489, 13824, 14190, 71032,  # wait
-    1355,  # input
-    144336,  # √ -> sqrt
+    1355,                              # input
+    144336,                            # √ -> sqrt
 ]}
 
 QUESTIONS = []
@@ -89,7 +90,7 @@ exit=lambda x=0:None
 def"""
 
 CODE_PREFIX = """</think>
-The problem can be solved by following code. 
+The problem can be solved by following code.
 ```python""" + CODE
 
 
@@ -143,6 +144,7 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
             add_generation_prompt=True
         )
         prompts.append(starter_text)
+
     sampling_params.temperature = TEMPERATURE_THINK
     sampling_params.max_tokens = max_tokens_think
     sampling_params.stop = ["</think>"]
@@ -160,46 +162,62 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
                 f.write(output.outputs[0].text)
 
     # STEP 2: Generate code for each question
-    prompts = []
-    for output in llm_outputs:
-        prompts.append(output.outputs[0].text + CODE_PREFIX)
     sampling_params.temperature = TEMPERATURE_CODE
     sampling_params.max_tokens = max_tokens_code
     sampling_params.stop = ["```"]
     sampling_params.logit_bias = LOGITS_BIAS_CODE
     sampling_params.repetition_penalty = REPETITION_PENALTY_CODE
-    llm_outputs = llm.generate(
-        prompts=prompts,
-        sampling_params=sampling_params,
-        use_tqdm=not DEBUG,
-    )
 
-    codes = []
-    for output in llm_outputs:
-        codes.append(CODE_FOR_ACTUAL_RUN + output.outputs[0].text)
-    if DEBUG:
-        for i, code in enumerate(codes):
-            with open(f"{debug_save_dir}/code_{i}.py", "w") as f:
-                f.write(code)
+    for i, output in enumerate(llm_outputs):
+        prompts[i] += output.outputs[0].text + CODE_PREFIX
 
-    executor = PythonExecutor()
-    execution_results = executor.batch_apply(codes)
+    code_outputs = ["" for _ in range(count)]
 
-    if DEBUG:
-        for i, (res, report) in enumerate(execution_results):
-            print(f"Execution {i}: \n{res=}\n{report=}\n")
-            with open(f"{debug_save_dir}/result_{i}.txt", "w") as f:
-                f.write(f"{res}\n\n{report}")
+    for iter in range(MAX_ITERATION_CODE):
+        for i in range(count):
+            with open(f"{debug_save_dir}/prompt_{iter}_{i}.txt", "w") as f:
+                f.write(prompts[i])
+
+        llm_outputs = llm.generate(
+            prompts=prompts,
+            sampling_params=sampling_params,
+            use_tqdm=not DEBUG,
+        )
+
+        codes = []
+        for output in llm_outputs:
+            codes.append(CODE_FOR_ACTUAL_RUN + output.outputs[0].text)
+        if DEBUG:
+            for i, code in enumerate(codes):
+                with open(f"{debug_save_dir}/code_{iter}_{i}.py", "w") as f:
+                    f.write(code)
+
+        executor = PythonExecutor()
+        execution_results = executor.batch_apply(codes)
+
+        if DEBUG:
+            for i, (res, report) in enumerate(execution_results):
+                print(f"Iteration {iter} Execution {i}: \n{res=}\n{report=}\n")
+                with open(f"{debug_save_dir}/result_{iter}_{i}.txt", "w") as f:
+                    f.write(f"{res}\n\n{report}")
+
+            for i, (res, report) in enumerate(execution_results):
+                if report == 'Done':
+                    code_outputs[i] = res
+                    if iter < MAX_ITERATION_CODE - 1:
+                        prompts[i] += f"```\n\nThe output of code: {res}\n\nSo the complete code would be:\n\n```python" + CODE
+                else:
+                    if iter < MAX_ITERATION_CODE - 1:
+                        prompts[i] += f"```\n\nBut this code has error: {report}\n\nSo the complete code would be:\n\n```python" + CODE
 
     counter = {}
     value = {}
 
-    for res, report in execution_results:
-        if report == 'Done':
-            res = parse_answer(res)
-            if res is not None:
-                counter[res] = counter.get(res, 0) + 1
-                value[res] = value.get(res, 0) + get_value(res)
+    for res in code_outputs:
+        res = parse_answer(res)
+        if res is not None:
+            counter[res] = counter.get(res, 0) + 1
+            value[res] = value.get(res, 0) + get_value(res)
 
     if not counter:
         return None, {}
