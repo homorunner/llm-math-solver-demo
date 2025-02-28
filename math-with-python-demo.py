@@ -14,29 +14,31 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MODEL = 'models/DeepSeek-R1-Distill-Qwen-7B-Awq'
 TEMPERATURE_THINK = 1.0
 TEMPERATURE_CODE = 0.5
-REPETITION_PENALTY_CODE = 1.2
+REPETITION_PENALTY_THINK = 1
+REPETITION_PENALTY_CODE = 1  # 1.2
 
 MAX_NUM_SEQS = 8
 MAX_TOKENS_THINK = 4096
-MAX_TOKENS_CODE = 2048
-MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE + 256
+MAX_TOKENS_CODE = 1024
+MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE + 1024
 
 LOGITS_BIAS_THINK = {}
 LOGITS_BIAS_CODE = {x: -10 for x in [
     3783, 11489, 13824, 14190, 71032,  # wait
     1355,  # input
+    144336,  # √ -> sqrt
 ]}
 
 QUESTIONS = []
 ANSWERS = []
-EVAL_COUNT = 10
+EVAL_COUNT = 100
 
 DEBUG = True
 
 
 def load_questions():
     global QUESTIONS, ANSWERS
-    for file in glob.glob('dataset/AIMO-*/reference.csv'):
+    for file in glob.glob('dataset/*/reference.csv'):
         with open(file) as f:
             reader = csv.reader(f)
             headers = next(reader)
@@ -125,7 +127,7 @@ def get_value(res: int) -> float:
     return 0.5
 
 
-def process(question: str, count: int, max_tokens_think: int, max_tokens_code: int, debug_save_dir="output") -> tuple[int, float]:
+def process(question: str, count: int, max_tokens_think: int, max_tokens_code: int, debug_save_dir="output") -> tuple[int, dict[int, int]]:
     # STEP 1: Think for each question
     prompts = []
     for _ in range(count):
@@ -143,6 +145,7 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
     sampling_params.max_tokens = max_tokens_think
     sampling_params.stop = ["</think>"]
     sampling_params.logit_bias = LOGITS_BIAS_THINK
+    sampling_params.repetition_penalty = REPETITION_PENALTY_THINK
     llm_outputs = llm.generate(
         prompts=prompts,
         sampling_params=sampling_params,

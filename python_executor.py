@@ -12,6 +12,8 @@ class PythonExecutor:
             return "", "No print statement found in the code"
         if "input(" in query:
             return "", "input() is not allowed, use constants instead"
+        if "readline(" in query:
+            return "", "readline() is not allowed, use constants instead"
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file_path = os.path.join(temp_dir, "tmp.py")
             with open(temp_file_path, "w", encoding="utf-8") as f:
