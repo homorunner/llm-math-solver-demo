@@ -1,11 +1,13 @@
 import os
 import subprocess
 import tempfile
+from multiprocessing import Pool
 
 
 class PythonExecutor:
-    def __init__(self, timeout=5):
+    def __init__(self, timeout=5, concurrency=0):
         self.timeout = timeout
+        self.concurrency = concurrency if concurrency > 0 else os.cpu_count()
 
     def run(self, query):
         if "print(" not in query:
@@ -47,14 +49,16 @@ class PythonExecutor:
             error_msg = "\n".join(new_msgs)
             return "", error_msg.strip()
 
+    def safe_run(self, query):
+        try:
+            res, report = self.run(query)
+            return res, report
+        except (TimeoutError, subprocess.TimeoutExpired):
+            return "", "Execution time out"
+        except Exception as e:
+            return "", str(e)
+
     def batch_apply(self, queries):
-        results = []
-        for query in queries:
-            try:
-                res, report = self.run(query)
-                results.append((res, report))
-            except (TimeoutError, subprocess.TimeoutExpired) as e:
-                results.append(("", "Execution time out"))
-            except Exception as e:
-                results.append(("", str(e)))
+        with Pool(processes=self.concurrency) as pool:
+            results = pool.map(self.safe_run, queries)
         return results
