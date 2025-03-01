@@ -17,11 +17,11 @@ TEMPERATURE_CODE = 0.25
 REPETITION_PENALTY_THINK = 1
 REPETITION_PENALTY_CODE = 1
 
-MAX_NUM_SEQS = 24
+MAX_NUM_SEQS = 16
 MAX_TOKENS_THINK = 4096
-MAX_TOKENS_CODE = 1024
+MAX_TOKENS_CODE = 1248
 MAX_ITERATION_CODE = 2
-MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE * MAX_ITERATION_CODE + 1024
+MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE * MAX_ITERATION_CODE + 1800
 
 LOGITS_BIAS_THINK = {}
 LOGITS_BIAS_CODE = {x: -10 for x in [
@@ -130,7 +130,7 @@ def get_value(res: int) -> float:
     return 0.5
 
 
-def process(question: str, count: int, max_tokens_think: int, max_tokens_code: int, debug_save_dir="output") -> tuple[int, dict[int, int]]:
+def process(question: str, count: int, max_tokens_think: int, max_tokens_code: int, debug_save_dir="output") -> tuple[int, dict[int, float]]:
     # STEP 1: Think for each question
     prompts = []
     for _ in range(count):
@@ -153,7 +153,7 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
     llm_outputs = llm.generate(
         prompts=prompts,
         sampling_params=sampling_params,
-        use_tqdm=not DEBUG,
+        use_tqdm=DEBUG,
     )
     if DEBUG:
         os.makedirs(debug_save_dir, exist_ok=True)
@@ -182,7 +182,7 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
         llm_outputs = llm.generate(
             prompts=prompts,
             sampling_params=sampling_params,
-            use_tqdm=not DEBUG,
+            use_tqdm=DEBUG,
         )
 
         codes = []
@@ -218,18 +218,16 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
                         f"```\n\nBut this code has error: {report}\n\nSo the complete code would be:\n\n```python" + CODE
 
     counter = {}
-    value = {}
 
     for res in code_outputs:
         res = parse_answer(res)
         if res is not None:
-            counter[res] = counter.get(res, 0) + 1
-            value[res] = value.get(res, 0) + get_value(res)
+            counter[res] = counter.get(res, 0) + get_value(res)
 
     if not counter:
         return None, {}
 
-    _, result = sorted([(v, k) for k, v in value.items()], reverse=True)[0]
+    _, result = sorted([(v, k) for k, v in counter.items()], reverse=True)[0]
     return (result % 1000 + 1000) % 1000, counter
 
 
@@ -256,7 +254,8 @@ if __name__ == "__main__":
         print(f"Final {result=}, {answer=}")
 
         correct_count += 1 if result == answer else 0
-        confidence += result_dict.get(answer, 0) / MAX_NUM_SEQS
+        confidence += result_dict.get(answer, 0) / \
+            sum(result_dict.values()) if result_dict else 0
 
         print(f"Accuracy: {correct_count}/{index + 1}")
         print(f"Confidence: {confidence / (index + 1)}")
