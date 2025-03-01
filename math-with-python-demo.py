@@ -203,7 +203,7 @@ def process(question: str, count: int, max_tokens_think: int, max_tokens_code: i
                     f.write(f"{res}\n\n{report}")
 
         for i, (res, report) in enumerate(execution_results):
-            if report == 'Done' and res:
+            if report == 'Done' and res.strip():
                 code_outputs[i] = res
                 if iter < MAX_ITERATION_CODE - 1:
                     prompts[i] += f"```\n\nThe output of code: {res}\n\nSo the complete code would be:\n\n```python" + CODE

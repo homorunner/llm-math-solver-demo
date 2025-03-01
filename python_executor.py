@@ -26,6 +26,9 @@ class PythonExecutor:
             )
             if result.returncode == 0:
                 output = result.stdout
+                output_lines = output.split("\n")
+                if len(output_lines) > 3:
+                    output = "\n".join(output_lines[-3:])
                 return output.strip(), "Done"
             error_msg = result.stderr.strip()
             msgs = error_msg.split("\n")
@@ -39,6 +42,8 @@ class PythonExecutor:
                 elif want_next:
                     new_msgs.append(m.strip())
                     want_next = False
+            if len(new_msgs) > 7:
+                new_msgs = new_msgs[-7:]
             error_msg = "\n".join(new_msgs)
             return "", error_msg.strip()
 
