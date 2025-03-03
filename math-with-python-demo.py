@@ -17,11 +17,13 @@ TEMPERATURE_THINK = 1.0
 TEMPERATURE_CODE = 0.25
 REPETITION_PENALTY_THINK = 1
 REPETITION_PENALTY_CODE = 1
+TOP_P = 0.9
+MIN_P = 0.1
 
 MAX_NUM_SEQS = 16
-MAX_TOKENS_THINK = 4096
-MAX_TOKENS_CODE = 1248
-MAX_ITERATION_CODE = 2
+MAX_TOKENS_THINK = 6400
+MAX_TOKENS_CODE = 1024
+MAX_ITERATION_CODE = 1
 MAX_TOKENS = MAX_TOKENS_THINK + MAX_TOKENS_CODE * MAX_ITERATION_CODE + 1600
 
 LOGITS_BIAS_THINK = {}
@@ -33,7 +35,7 @@ LOGITS_BIAS_CODE = {x: -10 for x in [
 
 QUESTIONS = []
 ANSWERS = []
-EVAL_COUNT = 100
+EVAL_COUNT = 1000
 
 DEBUG = True
 
@@ -59,12 +61,14 @@ def load_model():
         max_num_seqs=MAX_NUM_SEQS,
         max_model_len=MAX_TOKENS,
         trust_remote_code=True,
+        gpu_memory_utilization=0.95,
         seed=1,
     )
     tokenizer = llm.get_tokenizer()
 
     sampling_params = SamplingParams(
-        top_p=0.95,
+        top_p=TOP_P,
+        min_p=MIN_P,
         skip_special_tokens=True,
         max_tokens=MAX_TOKENS,
     )
@@ -236,12 +240,14 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         TEMPERATURE_THINK = float(sys.argv[1])
         TEMPERATURE_CODE = float(sys.argv[2])
-        MAX_NUM_SEQS = int(sys.argv[3])
-        MAX_TOKENS_THINK = int(sys.argv[4])
-        MAX_TOKENS_CODE = int(sys.argv[5])
-        MAX_ITERATION_CODE = int(sys.argv[6])
+        TOP_P = float(sys.argv[3])
+        MIN_P = float(sys.argv[4])
+        MAX_NUM_SEQS = int(sys.argv[5])
+        MAX_TOKENS_THINK = int(sys.argv[6])
+        MAX_TOKENS_CODE = int(sys.argv[7])
+        MAX_ITERATION_CODE = int(sys.argv[8])
         DEBUG = False
-        print(f"Using {TEMPERATURE_THINK=}, {TEMPERATURE_CODE=}, {MAX_NUM_SEQS=}, {MAX_TOKENS_THINK=}, {MAX_TOKENS_CODE=}, {MAX_ITERATION_CODE=}")
+        print(f"Using {TEMPERATURE_THINK=}, {TEMPERATURE_CODE=}, {TOP_P=}, {MIN_P=}, {MAX_NUM_SEQS=}, {MAX_TOKENS_THINK=}, {MAX_TOKENS_CODE=}, {MAX_ITERATION_CODE=}")
 
     load_model()
     load_questions()
