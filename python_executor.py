@@ -31,6 +31,9 @@ class PythonExecutor:
                 output_lines = output.split("\n")
                 if len(output_lines) > 3:
                     output = "\n".join(output_lines[-3:])
+                    for i in range(len(output_lines) - 3):
+                        if len(output_lines[i]) > 102:
+                            output_lines[i] = output_lines[i][:100] + "..."
                 return output.strip(), "Done"
             error_msg = result.stderr.strip()
             msgs = error_msg.split("\n")
@@ -46,6 +49,9 @@ class PythonExecutor:
                     want_next = False
             if len(new_msgs) > 7:
                 new_msgs = new_msgs[-7:]
+            for i in range(len(new_msgs)):
+                if len(new_msgs[i]) > 102:
+                    new_msgs[i] = new_msgs[i][:100] + "..."
             error_msg = "\n".join(new_msgs)
             return "", error_msg.strip()
 

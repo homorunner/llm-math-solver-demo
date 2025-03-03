@@ -7,8 +7,8 @@ from awq import AutoAWQForCausalLM
 from transformers import AutoTokenizer
 
 # Specify paths and hyperparameters for quantization
-model_path = "models/DeepSeek-R1-Distill-Qwen-7B"
-quant_path = "models/DeepSeek-R1-Distill-Qwen-7B-Awq"
+model_path = "models/DeepSeek-R1-Distill-Qwen-14B"
+quant_path = "models/DeepSeek-R1-Distill-Qwen-14B-Awq"
 quant_config = {"zero_point": True,
                 "q_group_size": 128, "w_bit": 4, "version": "GEMM"}
 # max_memory = {0: "8GB", "cpu": "24GB"}
@@ -16,8 +16,8 @@ quant_config = {"zero_point": True,
 # Load your tokenizer and model with AutoAWQ
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoAWQForCausalLM.from_pretrained(model_path,
-                                           device_map="auto",
-                                           # device_map="cpu",
+                                           # device_map="auto",
+                                           device_map="cpu",
                                            # max_memory=max_memory,
                                            safetensors=True)
 
@@ -70,11 +70,11 @@ for problem in load_aimo2():
     ], tokenize=False, add_generation_prompt=True)
     data.append(text)
 
-    text = tokenizer.apply_chat_template([
-        {"role": "user", "content": "请通过逐步推理来解答问题，并把最终答案放置于\\boxed{}中。"},
-        {"role": "user", "content": problem},
-    ], tokenize=False, add_generation_prompt=True)
-    data.append(text)
+    # text = tokenizer.apply_chat_template([
+    #     {"role": "user", "content": "请通过逐步推理来解答问题，并把最终答案放置于\\boxed{}中。"},
+    #     {"role": "user", "content": problem},
+    # ], tokenize=False, add_generation_prompt=True)
+    # data.append(text)
 
 print(f'start quantize, data length: {len(data)}')
 
@@ -84,7 +84,7 @@ model.quantize(tokenizer,
                calib_data=data,
                n_parallel_calib_samples=4,
                max_calib_samples=256,
-               max_calib_seq_len=4096)
+               max_calib_seq_len=2048)
 
 # Save quantized model
 model.save_quantized(quant_path)

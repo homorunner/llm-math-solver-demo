@@ -5,6 +5,8 @@ __pycache__
 *.pyd
 
 models/*
-dataset/*
+dataset/*/*
+!dataset/*/reference.csv
 
 output
+tmp.txt
